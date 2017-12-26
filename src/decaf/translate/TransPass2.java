@@ -295,6 +295,30 @@ public class TransPass2 extends Tree.Visitor {
 		}
 
 	}
+	
+	@Override
+	public void visitCondExpr(Tree.CondExpr condExpr) {
+		condExpr.switchExpr.accept(this);
+		condExpr.val = Temp.createTempI4();
+		Label condEnd = Label.createLabel();
+		for (Tree.Expr expr: condExpr.caseList) {
+			Tree.CaseExpr caseExpr = (Tree.CaseExpr) expr;
+			if (caseExpr.constant != null) {
+				caseExpr.constant.accept(this);
+				Label caseEnd = Label.createLabel();
+				Temp cmpResult = tr.genEqu(condExpr.switchExpr.val, caseExpr.constant.val);
+				tr.genBeqz(cmpResult, caseEnd);
+				caseExpr.expression.accept(this);
+				tr.genAssign(condExpr.val, caseExpr.expression.val);
+				tr.genBranch(condEnd);
+				tr.genMark(caseEnd);
+			} else {
+				caseExpr.expression.accept(this);
+				tr.genAssign(condExpr.val, caseExpr.expression.val);
+			}
+		}
+		tr.genMark(condEnd);
+	}
 
 	@Override
 	public void visitForLoop(Tree.ForLoop forLoop) {

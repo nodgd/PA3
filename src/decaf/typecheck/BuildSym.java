@@ -119,8 +119,7 @@ public class BuildSym extends Tree.Visitor {
 			if (table.getCurrentScope().equals(sym.getScope())) {
 				issueError(new DeclConflictError(v.getLocation(), v.getName(),
 						sym.getLocation()));
-			} else if ((sym.getScope().isFormalScope() || sym.getScope()
-					.isLocalScope())) {
+			} else if ((sym.getScope().isFormalScope() && table.getCurrentScope().isLocalScope() && ((LocalScope)table.getCurrentScope()).isCombinedtoFormal() )) {
 				issueError(new DeclConflictError(v.getLocation(), v.getName(),
 						sym.getLocation()));
 			} else {
@@ -150,7 +149,14 @@ public class BuildSym extends Tree.Visitor {
 			d.accept(this);
 			f.appendParam(d.symbol);
 		}
-		funcDef.body.accept(this);
+
+		funcDef.body.associatedScope = new LocalScope(funcDef.body);
+		funcDef.body.associatedScope.setCombinedtoFormal(true);
+		table.open(funcDef.body.associatedScope);
+		for (Tree s : funcDef.body.block) {
+			s.accept(this);
+		}
+		table.close();
 		table.close();
 	}
 
@@ -163,6 +169,9 @@ public class BuildSym extends Tree.Visitor {
 			break;
 		case Tree.INT:
 			type.type = BaseType.INT;
+			break;
+		case Tree.COMPLEX:
+			type.type = BaseType.COMPLEX;
 			break;
 		case Tree.BOOL:
 			type.type = BaseType.BOOL;
@@ -213,6 +222,20 @@ public class BuildSym extends Tree.Visitor {
 	public void visitForLoop(Tree.ForLoop forLoop) {
 		if (forLoop.loopBody != null) {
 			forLoop.loopBody.accept(this);
+		}
+	}
+	
+	@Override
+	public void visitDoStmt(Tree.DoStmt doStmt) {
+		for (Tree.Expr expr : doStmt.branchList) {
+			expr.accept(this);
+		}
+	}
+	
+	@Override
+	public void visitDoBranch(Tree.DoBranch doBranch) {
+		if (doBranch.assign != null) {
+			doBranch.assign.accept(this);
 		}
 	}
 

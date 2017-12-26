@@ -32,6 +32,7 @@ import java.util.*;
 %token LITERAL
 %token IDENTIFIER	AND   OR       STATIC  INSTANCEOF
 %token LESS_EQUAL   GREATER_EQUAL  EQUAL   NOT_EQUAL
+%token PRINT_COMP
 %token CASE   DEFAULT     SUPER    DCOPY   SCOPY
 %token DO     OD    III
 %token '+'  '-'  '*'  '/'  '%'  '='  '>'  '<'  '.'

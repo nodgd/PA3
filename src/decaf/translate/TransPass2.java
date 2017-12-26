@@ -344,6 +344,25 @@ public class TransPass2 extends Tree.Visitor {
 		loopExits.pop();
 		tr.genMark(exit);
 	}
+	
+	@Override
+	public void visitDoStmt(Tree.DoStmt doStmt) {
+		Label doStmtBegin = Label.createLabel();
+		Label doStmtEnd = Label.createLabel();
+		tr.genMark(doStmtBegin);
+		loopExits.push(doStmtEnd);
+		for (Tree.Expr expr: doStmt.branchList) {
+			Tree.DoBranch doBranch = (Tree.DoBranch) expr;
+			Label nextDoBranch = Label.createLabel();
+			doBranch.les.accept(this);
+			tr.genBeqz(doBranch.les.val, nextDoBranch);
+			doBranch.assign.accept(this);
+			tr.genBranch(doStmtBegin);
+			tr.genMark(nextDoBranch);
+		}
+		loopExits.pop();
+		tr.genMark(doStmtEnd);
+	}
 
 	@Override
 	public void visitIf(Tree.If ifStmt) {

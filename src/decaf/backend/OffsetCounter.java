@@ -43,6 +43,10 @@ public final class OffsetCounter {
 		this.value += direction[kind.ordinal()] * value;
 		return ret;
 	}
+	
+	public int get() {
+		return this.value;
+	}
 
 	public void set(int offset) {
 		value = offset;

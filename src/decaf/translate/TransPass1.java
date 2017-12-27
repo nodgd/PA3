@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.List;
 
 import decaf.tree.Tree;
+import decaf.type.BaseType;
 import decaf.backend.OffsetCounter;
 import decaf.symbol.Class;
 import decaf.symbol.Function;
@@ -58,8 +59,14 @@ public class TransPass1 extends Tree.Visitor {
 			oc.reset();
 		}
 		for (Variable v : vars) {
-			v.setOffset(oc.next(OffsetCounter.WORD_SIZE));
+			if (v.getType().equal(BaseType.COMPLEX)) {
+				//for (int i = 0; i < 2e9; i ++);
+				v.setOffset(oc.next(OffsetCounter.DOUBLE_SIZE));
+			} else {
+				v.setOffset(oc.next(OffsetCounter.WORD_SIZE));
+			}
 		}
+		classDef.symbol.setSize(oc.get());
 	}
 
 	@Override
@@ -98,7 +105,11 @@ public class TransPass1 extends Tree.Visitor {
 	@Override
 	public void visitVarDef(Tree.VarDef varDef) {
 		vars.add(varDef.symbol);
-		objectSize += OffsetCounter.WORD_SIZE;
+		if (varDef.type.type.equal(BaseType.COMPLEX)) {
+			objectSize += OffsetCounter.DOUBLE_SIZE;
+		} else {
+			objectSize += OffsetCounter.WORD_SIZE;
+		}
 	}
 
 }

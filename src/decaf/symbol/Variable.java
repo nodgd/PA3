@@ -10,12 +10,22 @@ public class Variable extends Symbol {
 	
 	private Temp temp;
 	
+	private Temp temj;//img part
+	
 	public Temp getTemp() {
 		return temp;
 	}
 
 	public void setTemp(Temp temp) {
 		this.temp = temp;
+	}
+	
+	public Temp getTemj() {
+		return temj;
+	}
+
+	public void setTemj(Temp temj) {
+		this.temj = temj;
 	}
 
 	public int getOffset() {

@@ -55,6 +55,11 @@ public class TransPass2 extends Tree.Visitor {
 			Temp t = Temp.createTempI4();
 			t.sym = varDef.symbol;
 			varDef.symbol.setTemp(t);
+			if (varDef.type.type.equal(BaseType.COMPLEX)) {
+				Temp tj = Temp.createTempI4();
+				tj.sym = varDef.symbol;
+				varDef.symbol.setTemj(tj);
+			}
 		}
 	}
 
@@ -64,14 +69,131 @@ public class TransPass2 extends Tree.Visitor {
 		expr.right.accept(this);
 		switch (expr.tag) {
 		case Tree.PLUS:
-			expr.val = tr.genAdd(expr.left.val, expr.right.val);
-			break;
+			if (expr.type.equal(BaseType.INT)) {
+				//integer result
+				expr.val = tr.genAdd(expr.left.val, expr.right.val);
+				expr.vaj = null;
+				break;
+			} else {
+				//complex result
+				//re + re
+				if (expr.left.val == null) {
+					if (expr.right.val == null) {
+						expr.val = tr.genLoadImm4(0);
+					} else {
+						expr.val = Temp.createTempI4();
+						tr.genAssign(expr.val, expr.right.val);
+					}
+				} else {
+					if (expr.right.val == null) {
+						expr.val = Temp.createTempI4();
+						tr.genAssign(expr.val, expr.left.val);
+					} else {
+						expr.val = tr.genAdd(expr.left.val, expr.right.val);						
+					}
+				}
+				//im + im
+				if (expr.left.vaj == null) {
+					if (expr.right.vaj == null) {
+						expr.vaj = tr.genLoadImm4(0);
+					} else {
+						expr.vaj = Temp.createTempI4();
+						tr.genAssign(expr.vaj, expr.right.vaj);
+					}
+				} else {
+					if (expr.right.vaj == null) {
+						expr.vaj = Temp.createTempI4();
+						tr.genAssign(expr.vaj, expr.left.vaj);
+					} else {
+						expr.vaj = tr.genAdd(expr.left.vaj, expr.right.vaj);						
+					}
+				}
+				break;
+			}
 		case Tree.MINUS:
 			expr.val = tr.genSub(expr.left.val, expr.right.val);
 			break;
 		case Tree.MUL:
-			expr.val = tr.genMul(expr.left.val, expr.right.val);
-			break;
+			if (expr.type.equal(BaseType.INT)) {
+				//integer result
+				expr.val = tr.genMul(expr.left.val, expr.right.val);
+				break;
+			} else {
+				//complex result
+				//mrr = left.re * right.re
+				Temp mrr = null;
+				if (expr.left.val == null) {
+					if (expr.right.val == null) {
+						mrr = tr.genLoadImm4(0);
+					} else {
+						mrr = Temp.createTempI4();
+						tr.genAssign(mrr, expr.right.val);
+					}
+				} else {
+					if (expr.right.val == null) {
+						mrr = Temp.createTempI4();
+						tr.genAssign(mrr, expr.left.val);
+					} else {
+						mrr = tr.genMul(expr.left.val, expr.right.val);						
+					}
+				}
+				//mrj = left.re * right.im
+				Temp mrj = null;
+				if (expr.left.val == null) {
+					if (expr.right.vaj == null) {
+						mrj = tr.genLoadImm4(0);
+					} else {
+						mrj = Temp.createTempI4();
+						tr.genAssign(mrj, expr.right.vaj);
+					}
+				} else {
+					if (expr.right.vaj == null) {
+						mrj = Temp.createTempI4();
+						tr.genAssign(mrj, expr.left.val);
+					} else {
+						mrj = tr.genMul(expr.left.val, expr.right.vaj);						
+					}
+				}
+				//mjr = left.im * right.re
+				Temp mjr = null;
+				if (expr.left.vaj == null) {
+					if (expr.right.val == null) {
+						mjr = tr.genLoadImm4(0);
+					} else {
+						mjr = Temp.createTempI4();
+						tr.genAssign(mjr, expr.right.val);
+					}
+				} else {
+					if (expr.right.val == null) {
+						mjr = Temp.createTempI4();
+						tr.genAssign(mjr, expr.left.vaj);
+					} else {
+						mjr = tr.genMul(expr.left.vaj, expr.right.val);						
+					}
+				}
+				//mjj = left.im * right.im
+				Temp mjj = null;
+				if (expr.left.vaj == null) {
+					if (expr.right.vaj == null) {
+						mjj = tr.genLoadImm4(0);
+					} else {
+						mjj = Temp.createTempI4();
+						tr.genAssign(mjj, expr.right.vaj);
+					}
+				} else {
+					if (expr.right.vaj == null) {
+						mjj = Temp.createTempI4();
+						tr.genAssign(mjj, expr.left.vaj);
+					} else {
+						mjj = tr.genMul(expr.left.vaj, expr.right.vaj);						
+					}
+				}
+				//re = mrr - mjj
+				expr.val = tr.genSub(mrr, mjj);
+				//im = mrj + mjr
+				expr.vaj = tr.genAdd(mrj, mjr);
+				break;
+			}
 		case Tree.DIV:
 			expr.val = tr.genDiv(expr.left.val, expr.right.val);
 			break;
@@ -140,8 +262,14 @@ public class TransPass2 extends Tree.Visitor {
 			break;
 		case PARAM_VAR:
 		case LOCAL_VAR:
-			tr.genAssign(((Tree.Ident) assign.left).symbol.getTemp(),
-					assign.expr.val);
+			if (assign.left.type.equal(BaseType.COMPLEX)) {
+				//complex
+				tr.genAssign(((Tree.Ident) assign.left).symbol.getTemp(), assign.expr.val);
+				tr.genAssign(((Tree.Ident) assign.left).symbol.getTemj(), assign.expr.vaj);
+			} else {
+				//other type
+				tr.genAssign(((Tree.Ident) assign.left).symbol.getTemp(), assign.expr.val);
+			}
 			break;
 		}
 	}
@@ -151,9 +279,14 @@ public class TransPass2 extends Tree.Visitor {
 		switch (literal.typeTag) {
 		case Tree.INT:
 			literal.val = tr.genLoadImm4(((Integer)literal.value).intValue());
+			literal.vaj = null;
 			break;
 		case Tree.BOOL:
 			literal.val = tr.genLoadImm4((Boolean)(literal.value) ? 1 : 0);
+			break;
+		case Tree.IMG:
+			literal.val = tr.genLoadImm4(0);
+			literal.vaj = tr.genLoadImm4(((Integer)literal.value).intValue());
 			break;
 		default:
 			literal.val = tr.genLoadStrConst((String)literal.value);
@@ -172,8 +305,40 @@ public class TransPass2 extends Tree.Visitor {
 		case Tree.NEG:
 			expr.val = tr.genNeg(expr.expr.val);
 			break;
-		default:
+		case Tree.NOT:
 			expr.val = tr.genLNot(expr.expr.val);
+			break;
+		case Tree.RE:
+			if (expr.expr.val == null) {
+				expr.val = tr.genLoadImm4(0);
+			} else {
+				expr.val = Temp.createTempI4();
+				tr.genAssign(expr.val, expr.expr.val);
+			}
+			break;
+		case Tree.IM:
+			if (expr.expr.vaj == null) {
+				expr.val = tr.genLoadImm4(0);
+			} else {
+				expr.val = Temp.createTempI4();
+				tr.genAssign(expr.val, expr.expr.vaj);
+			}
+			break;
+		case Tree.COMPCAST:
+			if (expr.expr.val == null) {
+				expr.val = tr.genLoadImm4(0);
+			} else {
+				expr.val = Temp.createTempI4();
+				tr.genAssign(expr.val, expr.expr.val);
+			}
+			if (expr.expr.vaj == null) {
+				expr.vaj = tr.genLoadImm4(0);
+			} else {
+				expr.vaj = Temp.createTempI4();
+				tr.genAssign(expr.vaj, expr.expr.vaj);
+			}
+			break;
+		default:
 		}
 	}
 
@@ -231,6 +396,23 @@ public class TransPass2 extends Tree.Visitor {
 	}
 
 	@Override
+	public void visitPrintComp(Tree.PrintComp printCompStmt) {
+		for (Tree.Expr r : printCompStmt.exprs) {
+			r.accept(this);
+			tr.genParm(r.val);
+			tr.genIntrinsicCall(Intrinsic.PRINT_INT);
+			Temp opAdd = tr.genLoadStrConst("+");
+			tr.genParm(opAdd);
+			tr.genIntrinsicCall(Intrinsic.PRINT_STRING);
+			tr.genParm(r.vaj);
+			tr.genIntrinsicCall(Intrinsic.PRINT_INT);
+			Temp opIm = tr.genLoadStrConst("j");
+			tr.genParm(opIm);
+			tr.genIntrinsicCall(Intrinsic.PRINT_STRING);
+		}
+	}
+
+	@Override
 	public void visitIndexed(Tree.Indexed indexed) {
 		indexed.array.accept(this);
 		indexed.index.accept(this);
@@ -251,9 +433,19 @@ public class TransPass2 extends Tree.Visitor {
 		switch (ident.lvKind) {
 		case MEMBER_VAR:
 			ident.val = tr.genLoad(ident.owner.val, ident.symbol.getOffset());
+			if (ident.type.equal(BaseType.COMPLEX)) {
+				ident.vaj = tr.genLoad(ident.owner.val, ident.symbol.getOffset());
+			} else {
+				ident.vaj = null;
+			}
 			break;
 		default:
 			ident.val = ident.symbol.getTemp();
+			if (ident.type.equal(BaseType.COMPLEX)) {
+				ident.vaj = ident.symbol.getTemj();
+			} else {
+				ident.vaj = null;
+			}
 			break;
 		}
 	}

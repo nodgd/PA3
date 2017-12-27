@@ -857,6 +857,7 @@ public abstract class Tree {
 
     	public Type type;
     	public Temp val;
+    	public Temp vaj;//img part
     	public boolean isClass;
     	public boolean usedForRef;
     	

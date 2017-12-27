@@ -123,71 +123,31 @@ public class TransPass2 extends Tree.Visitor {
 				//complex result
 				//mrr = left.re * right.re
 				Temp mrr = null;
-				if (expr.left.val == null) {
-					if (expr.right.val == null) {
-						mrr = tr.genLoadImm4(0);
-					} else {
-						mrr = Temp.createTempI4();
-						tr.genAssign(mrr, expr.right.val);
-					}
+				if (expr.left.val == null || expr.right.val == null) {
+					mrr = tr.genLoadImm4(0);
 				} else {
-					if (expr.right.val == null) {
-						mrr = Temp.createTempI4();
-						tr.genAssign(mrr, expr.left.val);
-					} else {
-						mrr = tr.genMul(expr.left.val, expr.right.val);						
-					}
+					mrr = tr.genMul(expr.left.val, expr.right.val);
 				}
 				//mrj = left.re * right.im
 				Temp mrj = null;
-				if (expr.left.val == null) {
-					if (expr.right.vaj == null) {
-						mrj = tr.genLoadImm4(0);
-					} else {
-						mrj = Temp.createTempI4();
-						tr.genAssign(mrj, expr.right.vaj);
-					}
+				if (expr.left.val == null || expr.right.vaj == null) {
+					mrj = tr.genLoadImm4(0);
 				} else {
-					if (expr.right.vaj == null) {
-						mrj = Temp.createTempI4();
-						tr.genAssign(mrj, expr.left.val);
-					} else {
-						mrj = tr.genMul(expr.left.val, expr.right.vaj);						
-					}
+					mrj = tr.genMul(expr.left.val, expr.right.vaj);
 				}
 				//mjr = left.im * right.re
 				Temp mjr = null;
-				if (expr.left.vaj == null) {
-					if (expr.right.val == null) {
-						mjr = tr.genLoadImm4(0);
-					} else {
-						mjr = Temp.createTempI4();
-						tr.genAssign(mjr, expr.right.val);
-					}
+				if (expr.left.vaj == null || expr.right.val == null) {
+					mjr = tr.genLoadImm4(0);
 				} else {
-					if (expr.right.val == null) {
-						mjr = Temp.createTempI4();
-						tr.genAssign(mjr, expr.left.vaj);
-					} else {
-						mjr = tr.genMul(expr.left.vaj, expr.right.val);						
-					}
+					mjr = tr.genMul(expr.left.vaj, expr.right.val);
 				}
 				//mjj = left.im * right.im
 				Temp mjj = null;
-				if (expr.left.vaj == null) {
-					if (expr.right.vaj == null) {
-						mjj = tr.genLoadImm4(0);
-					} else {
-						mjj = Temp.createTempI4();
-						tr.genAssign(mjj, expr.right.vaj);
-					}
+				if (expr.left.vaj == null || expr.right.vaj == null) {
+					mjj = tr.genLoadImm4(0);
 				} else {
-					if (expr.right.vaj == null) {
-						mjj = Temp.createTempI4();
-						tr.genAssign(mjj, expr.left.vaj);
-					} else {
-						mjj = tr.genMul(expr.left.vaj, expr.right.vaj);						
-					}
+					mjj = tr.genMul(expr.left.vaj, expr.right.vaj);
 				}
 				//re = mrr - mjj
 				expr.val = tr.genSub(mrr, mjj);

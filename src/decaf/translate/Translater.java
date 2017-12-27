@@ -179,13 +179,25 @@ public class Translater {
 		return dst;
 	}
 
+	public void genCheckDivisionByZero(Temp src1, Temp src2) {
+		Label exit = Label.createLabel();
+		genBnez(src2, exit);
+		Temp msg = genLoadStrConst(RuntimeError.DIVISION_BY_ZERO);
+		genParm(msg);
+		genIntrinsicCall(Intrinsic.PRINT_STRING);
+		genIntrinsicCall(Intrinsic.HALT);
+		genMark(exit);
+	}
+	
 	public Temp genDiv(Temp src1, Temp src2) {
+		genCheckDivisionByZero(src1, src2);
 		Temp dst = Temp.createTempI4();
 		append(Tac.genDiv(dst, src1, src2));
 		return dst;
 	}
 
 	public Temp genMod(Temp src1, Temp src2) {
+		genCheckDivisionByZero(src1, src2);
 		Temp dst = Temp.createTempI4();
 		append(Tac.genMod(dst, src1, src2));
 		return dst;

@@ -87,6 +87,12 @@ public class TransPass1 extends Tree.Visitor {
 			t.sym = v;
 			t.isParam = true;
 			v.setTemp(t);
+			if (v.getType().equal(BaseType.COMPLEX)) {
+				Temp tj = Temp.createTempI4();
+				tj.sym = v;
+				tj.isParam = true;
+				v.setTemj(tj);
+			}
 			v.setOffset(oc.next(OffsetCounter.POINTER_SIZE));
 			order = 1;
 		} else {
@@ -99,6 +105,13 @@ public class TransPass1 extends Tree.Visitor {
 			t.isParam = true;
 			vd.symbol.setTemp(t);
 			vd.symbol.setOffset(oc.next(vd.symbol.getTemp().size));
+			if (vd.type.type.equal(BaseType.COMPLEX)) {
+				Temp tj = Temp.createTempI4();
+				tj.sym = vd.symbol;
+				tj.isParam = true;
+				vd.symbol.setTemj(tj);
+				oc.next(vd.symbol.getTemj().size);
+			}
 		}
 	}
 

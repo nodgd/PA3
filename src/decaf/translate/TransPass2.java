@@ -241,7 +241,6 @@ public class TransPass2 extends Tree.Visitor {
 			Tree.Ident varRef = (Tree.Ident) assign.left;
 			tr.genStore(assign.expr.val, varRef.owner.val, varRef.symbol.getOffset());
 			if (assign.left.type.equal(BaseType.COMPLEX)) {
-				for (int i = 0; i < 2e9; i ++);
 				tr.genStore(assign.expr.vaj, varRef.owner.val, varRef.symbol.getOffset() + 4);
 			}
 			break;
@@ -399,7 +398,6 @@ public class TransPass2 extends Tree.Visitor {
 
 	@Override
 	public void visitIndexed(Tree.Indexed indexed) {
-		//tr.genMemo("visitIndexed begin");
 		indexed.array.accept(this);
 		indexed.index.accept(this);
 		if (indexed.array.type.isArrayType() && 
@@ -422,7 +420,6 @@ public class TransPass2 extends Tree.Visitor {
 			Temp base = tr.genAdd(indexed.array.val, t);
 			indexed.val = tr.genLoad(base, 0);		
 		}
-		//tr.genMemo("visitIndexed end");
 	}
 
 	@Override
@@ -474,6 +471,9 @@ public class TransPass2 extends Tree.Visitor {
 			}
 			for (Tree.Expr expr : callExpr.actuals) {
 				tr.genParm(expr.val);
+				if (expr.type.equal(BaseType.COMPLEX)) {
+					tr.genParm(expr.vaj);
+				}
 			}
 			if (callExpr.receiver == null) {
 				callExpr.val = tr.genDirectCall(

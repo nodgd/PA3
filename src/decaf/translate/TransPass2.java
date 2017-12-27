@@ -8,6 +8,7 @@ import decaf.machdesc.Intrinsic;
 import decaf.symbol.Variable;
 import decaf.tac.Label;
 import decaf.tac.Temp;
+import decaf.type.ArrayType;
 import decaf.type.BaseType;
 
 public class TransPass2 extends Tree.Visitor {
@@ -249,11 +250,32 @@ public class TransPass2 extends Tree.Visitor {
 		assign.expr.accept(this);
 		switch (assign.left.lvKind) {
 		case ARRAY_ELEMENT:
-			Tree.Indexed arrayRef = (Tree.Indexed) assign.left;
-			Temp esz = tr.genLoadImm4(OffsetCounter.WORD_SIZE);
-			Temp t = tr.genMul(arrayRef.index.val, esz);
-			Temp base = tr.genAdd(arrayRef.array.val, t);
-			tr.genStore(assign.expr.val, base, 0);
+			if (assign.left.type.equal(BaseType.COMPLEX)) {
+				//complex array
+				Tree.Indexed arrayRef = (Tree.Indexed) assign.left;
+				Temp esz = tr.genLoadImm4(OffsetCounter.DOUBLE_SIZE);
+				Temp t = tr.genMul(arrayRef.index.val, esz);
+				Temp base = tr.genAdd(arrayRef.array.val, t);
+				if (assign.expr.val != null) {
+					tr.genStore(assign.expr.val, base, 0);
+				} else {
+					Temp zero = tr.genLoadImm4(0);
+					tr.genStore(zero, base, 0);
+				}
+				if (assign.expr.vaj != null) {
+					tr.genStore(assign.expr.vaj, base, 4);
+				} else {
+					Temp zero = tr.genLoadImm4(0);
+					tr.genStore(zero, base, 4);
+				}
+			} else {
+				//other type array
+				Tree.Indexed arrayRef = (Tree.Indexed) assign.left;
+				Temp esz = tr.genLoadImm4(OffsetCounter.WORD_SIZE);
+				Temp t = tr.genMul(arrayRef.index.val, esz);
+				Temp base = tr.genAdd(arrayRef.array.val, t);
+				tr.genStore(assign.expr.val, base, 0);
+			}
 			break;
 		case MEMBER_VAR:
 			Tree.Ident varRef = (Tree.Ident) assign.left;
@@ -414,14 +436,30 @@ public class TransPass2 extends Tree.Visitor {
 
 	@Override
 	public void visitIndexed(Tree.Indexed indexed) {
+		//tr.genMemo("visitIndexed begin");
 		indexed.array.accept(this);
 		indexed.index.accept(this);
-		tr.genCheckArrayIndex(indexed.array.val, indexed.index.val);
-		
-		Temp esz = tr.genLoadImm4(OffsetCounter.WORD_SIZE);
-		Temp t = tr.genMul(indexed.index.val, esz);
-		Temp base = tr.genAdd(indexed.array.val, t);
-		indexed.val = tr.genLoad(base, 0);
+		if (indexed.array.type.isArrayType() && 
+			((ArrayType) indexed.array.type).getElementType().equal(BaseType.COMPLEX)) {
+			//complex array
+			Temp compIndex = tr.genAdd(indexed.index.val, indexed.index.val);
+			tr.genCheckArrayIndex(indexed.array.val, compIndex);
+			
+			Temp esz = tr.genLoadImm4(OffsetCounter.DOUBLE_SIZE);
+			Temp t = tr.genMul(indexed.index.val, esz);
+			Temp base = tr.genAdd(indexed.array.val, t);
+			indexed.val = tr.genLoad(base, 0);		
+			indexed.vaj = tr.genLoad(base, 4);
+		} else {
+			//other type array
+			tr.genCheckArrayIndex(indexed.array.val, indexed.index.val);	
+			
+			Temp esz = tr.genLoadImm4(OffsetCounter.WORD_SIZE);
+			Temp t = tr.genMul(indexed.index.val, esz);
+			Temp base = tr.genAdd(indexed.array.val, t);
+			indexed.val = tr.genLoad(base, 0);		
+		}
+		//tr.genMemo("visitIndexed end");
 	}
 
 	@Override
@@ -581,7 +619,14 @@ public class TransPass2 extends Tree.Visitor {
 	@Override
 	public void visitNewArray(Tree.NewArray newArray) {
 		newArray.length.accept(this);
-		newArray.val = tr.genNewArray(newArray.length.val);
+		if (newArray.elementType.type.equal(BaseType.COMPLEX)) {
+			//complex
+			Temp compLen = tr.genAdd(newArray.length.val, newArray.length.val);
+			newArray.val = tr.genNewArray(compLen);
+		} else {
+			//other type
+			newArray.val = tr.genNewArray(newArray.length.val);
+		}
 	}
 
 	@Override

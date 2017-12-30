@@ -5,11 +5,14 @@ import java.util.Stack;
 import decaf.tree.Tree;
 import decaf.backend.OffsetCounter;
 import decaf.machdesc.Intrinsic;
+import decaf.symbol.Symbol;
 import decaf.symbol.Variable;
 import decaf.tac.Label;
 import decaf.tac.Temp;
 import decaf.type.ArrayType;
 import decaf.type.BaseType;
+import decaf.type.ClassType;
+import decaf.type.Type;
 
 public class TransPass2 extends Tree.Visitor {
 
@@ -40,7 +43,6 @@ public class TransPass2 extends Tree.Visitor {
 		tr.beginFunc(funcDefn.symbol);
 		funcDefn.body.accept(this);
 		tr.endFunc();
-		currentThis = null;
 	}
 
 	@Override
@@ -344,6 +346,11 @@ public class TransPass2 extends Tree.Visitor {
 	}
 
 	@Override
+	public void visitSuperExpr(Tree.SuperExpr superExpr) {
+		superExpr.val = currentThis;
+	}
+
+	@Override
 	public void visitReadIntExpr(Tree.ReadIntExpr readIntExpr) {
 		readIntExpr.val = tr.genIntrinsicCall(Intrinsic.READ_INT);
 	}
@@ -480,10 +487,52 @@ public class TransPass2 extends Tree.Visitor {
 						callExpr.symbol.getFuncty().label, callExpr.symbol
 								.getReturnType());
 			} else {
-				Temp vt = tr.genLoad(callExpr.receiver.val, 0);
-				Temp func = tr.genLoad(vt, callExpr.symbol.getOffset());
-				callExpr.val = tr.genIndirectCall(func, callExpr.symbol
-						.getReturnType());
+				/*
+				 * 这个地方，项目中原本给出的代码是有错误的，例如下面这段decaf代码
+				 * class A {
+				 *     void func1() {
+				 *         Print("A.func1\n");
+				 *     }
+				 *     void func2() {
+				 *         Print("A.func2\n");
+				 *         func1();
+				 *     }
+				 * }
+				 * class B {
+				 *     void func1() {
+				 *         Print("B.func1\n");
+				 *     }
+				 * }
+				 * class Main {
+				 *     static void main() {
+				 *         class B b;
+				 *         b = new B();
+				 *         b.func2();
+				 *     }
+				 * }
+				 * 在调用b.func2时，实际会调用A类的func2，在它里面又调用func1，原则上应该调用A类的func1
+				 * 测试用例中q3-super-test4中的class E和class F出现了这种情况
+				 * 但在原本给出的代码中，运行func2时仍然会调用B类的func1，就错啦！
+				 */
+				Temp originalVTable = tr.genLoad(callExpr.receiver.val, 0);
+				Temp receiverVTable = originalVTable;
+				ClassType receiverType = (ClassType) callExpr.receiver.type;
+				if (callExpr.receiver.tag == Tree.SUPEREXPR) {
+					receiverVTable = tr.genLoad(receiverVTable, 0);
+					receiverType = receiverType.getParentType();
+				}
+				while (true) {
+					Symbol symbol = receiverType.getClassScope().lookup(callExpr.method);
+					if (symbol != null) {
+						break;
+					}
+					receiverVTable = tr.genLoad(receiverVTable, 0);
+					receiverType = receiverType.getParentType();
+				}
+				tr.genStore(receiverVTable, callExpr.receiver.val, 0);
+				Temp func = tr.genLoad(receiverVTable, callExpr.symbol.getOffset());
+				callExpr.val = tr.genIndirectCall(func, callExpr.symbol.getReturnType());
+				tr.genStore(originalVTable, callExpr.receiver.val, 0);
 			}
 		}
 

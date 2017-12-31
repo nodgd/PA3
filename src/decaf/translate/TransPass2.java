@@ -1,5 +1,6 @@
 package decaf.translate;
 
+import java.util.Iterator;
 import java.util.Stack;
 
 import decaf.tree.Tree;
@@ -7,6 +8,7 @@ import decaf.backend.OffsetCounter;
 import decaf.machdesc.Intrinsic;
 import decaf.symbol.Symbol;
 import decaf.symbol.Variable;
+import decaf.symbol.Class;
 import decaf.tac.Label;
 import decaf.tac.Temp;
 import decaf.type.ArrayType;
@@ -359,6 +361,20 @@ public class TransPass2 extends Tree.Visitor {
 	public void visitReadLineExpr(Tree.ReadLineExpr readStringExpr) {
 		readStringExpr.val = tr.genIntrinsicCall(Intrinsic.READ_LINE);
 	}
+	
+	@Override
+	public void visitSCopyExpr(Tree.SCopyExpr scopyExpr) {
+		scopyExpr.expr.accept(this);
+		ClassType classType = (ClassType) scopyExpr.type;
+		scopyExpr.val = tr.genCopyClass(scopyExpr.expr.val, classType, false);
+	}
+	
+	@Override
+	public void visitDCopyExpr(Tree.DCopyExpr dcopyExpr) {
+		dcopyExpr.expr.accept(this);
+		ClassType classType = (ClassType) dcopyExpr.type;
+		dcopyExpr.val = tr.genCopyClass(dcopyExpr.expr.val, classType, true);
+	}
 
 	@Override
 	public void visitReturn(Tree.Return returnStmt) {
@@ -464,8 +480,11 @@ public class TransPass2 extends Tree.Visitor {
 	public void visitCallExpr(Tree.CallExpr callExpr) {
 		if (callExpr.isArrayLength) {
 			callExpr.receiver.accept(this);
-			callExpr.val = tr.genLoad(callExpr.receiver.val,
-					-OffsetCounter.WORD_SIZE);
+			callExpr.val = tr.genLoad(callExpr.receiver.val, - OffsetCounter.WORD_SIZE);
+			if (((ArrayType) callExpr.receiver.type).getElementType().equal(BaseType.COMPLEX)) {
+				Temp const_2 = tr.genLoadImm4(2);
+				callExpr.val = tr.genDiv(callExpr.val, const_2);
+			}
 		} else {
 			if (callExpr.receiver != null) {
 				callExpr.receiver.accept(this);

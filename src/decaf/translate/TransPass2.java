@@ -408,9 +408,14 @@ public class TransPass2 extends Tree.Visitor {
 			r.accept(this);
 			tr.genParm(r.val);
 			tr.genIntrinsicCall(Intrinsic.PRINT_INT);
+			Label mark = Label.createLabel();
+			Temp zero = tr.genLoadImm4(0);
+			Temp cond = tr.genLes(r.vaj, zero);
+			tr.genBnez(cond, mark);
 			Temp opAdd = tr.genLoadStrConst("+");
 			tr.genParm(opAdd);
 			tr.genIntrinsicCall(Intrinsic.PRINT_STRING);
+			tr.genMark(mark);
 			tr.genParm(r.vaj);
 			tr.genIntrinsicCall(Intrinsic.PRINT_INT);
 			Temp opIm = tr.genLoadStrConst("j");

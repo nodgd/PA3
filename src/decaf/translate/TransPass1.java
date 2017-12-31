@@ -60,7 +60,6 @@ public class TransPass1 extends Tree.Visitor {
 		}
 		for (Variable v : vars) {
 			if (v.getType().equal(BaseType.COMPLEX)) {
-				//for (int i = 0; i < 2e9; i ++);
 				v.setOffset(oc.next(OffsetCounter.DOUBLE_SIZE));
 			} else {
 				v.setOffset(oc.next(OffsetCounter.WORD_SIZE));

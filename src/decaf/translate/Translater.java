@@ -1,7 +1,11 @@
 package decaf.translate;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileWriter;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -19,7 +23,9 @@ import decaf.tac.Label;
 import decaf.tac.Tac;
 import decaf.tac.Temp;
 import decaf.tac.VTable;
+import decaf.type.ArrayType;
 import decaf.type.BaseType;
+import decaf.type.ClassType;
 import decaf.type.Type;
 
 public class Translater {
@@ -308,6 +314,88 @@ public class Translater {
 			dst = Temp.createTempI4();
 		}
 		append(Tac.genDirectCall(dst, intrn.label));
+		return dst;
+	}
+	
+	public Temp genCopyArray(Temp src, ArrayType arrayType, boolean isDCopy) {
+		//获取长度，创建内存
+		Temp length = genLoad(src, - OffsetCounter.WORD_SIZE);
+		Temp unit = genLoadImm4(OffsetCounter.WORD_SIZE);
+		Temp size = genAdd(unit, genMul(unit, length));
+		genParm(size);
+		Temp obj = genIntrinsicCall(Intrinsic.ALLOCATE);
+		genStore(length, obj, 0);
+		Label loop = Label.createLabel();
+		Label exit = Label.createLabel();
+		//（反向）循环语句复制数组的每个元素
+		append(Tac.genAdd(obj, obj, size));
+		Temp src_ = genAdd(src, size);
+		append(Tac.genSub(src_, src_, unit));
+		genMark(loop);
+		append(Tac.genSub(size, size, unit));
+		genBeqz(size, exit);
+		append(Tac.genSub(obj, obj, unit));
+		append(Tac.genSub(src_, src_, unit));
+		Temp tmp = genLoad(src_, 0);
+		if (arrayType.getElementType().isArrayType()) {
+			tmp = genCopyArray(tmp, (ArrayType) arrayType.getElementType(), isDCopy);
+		} else if (arrayType.getElementType().isClassType() && isDCopy) {
+			tmp = genCopyClass(tmp, (ClassType) arrayType.getElementType(), isDCopy);
+		}
+		genStore(tmp, obj, 0);
+		genBranch(loop);
+		genMark(exit);
+		return obj;
+	}
+	
+	public Temp genCopyClass(Temp src, ClassType classType, boolean isDCopy) {
+		Class c = classType.getSymbol();
+		//创建一片内存
+		Temp size = genLoadImm4(c.getSize());
+		genParm(size);
+		Temp dst = genIntrinsicCall(Intrinsic.ALLOCATE);
+		//虚函数表不用复制，直接赋值
+		Temp tmp = genLoad(src, 0);
+		genStore(tmp, dst, 0);
+		//获取成员变量列表，直接获取是随缘排序的，需要自己排序
+		List<Variable> memberVarList = new ArrayList<>();
+		for (Iterator<Symbol> ite = c.getAssociatedScope().iterator(); ite.hasNext();) {
+			Symbol symbol = (Symbol) ite.next();
+			if (symbol.isVariable()) {
+				memberVarList.add((Variable) symbol);
+			}
+		}
+		Collections.sort(memberVarList, Symbol.ORDER_COMPARATOR);
+		//依次复制成员变量
+		for (int i = 0; i < memberVarList.size(); i ++) {
+			Variable memberVar = memberVarList.get(i);
+			int offset = ((Variable) memberVar).getOffset();
+			if (memberVar.getType().equal(BaseType.BOOL) ||
+					memberVar.getType().equal(BaseType.INT) ||
+					memberVar.getType().equal(BaseType.STRING)) {
+				//4字节类型，直接复制数据
+				tmp = genLoad(src, offset);
+				genStore(tmp, dst, offset);
+			} else if (memberVar.getType().equal(BaseType.COMPLEX)) {
+				//8字节类型，直接赋值数据
+				tmp = genLoad(src, offset);
+				genStore(tmp, dst, offset);
+				tmp = genLoad(src, offset + 4);
+				genStore(tmp, dst, offset + 4);
+			} else if (memberVar.getType().isArrayType()) {
+				//数组类型，用数组的方式处理
+				tmp = genLoad(src, offset);
+				tmp = genCopyArray(tmp, (ArrayType) memberVar.getType(), isDCopy);
+				genStore(tmp, dst, offset);
+
+			} else if (memberVar.getType().isClassType()) {
+				tmp = genLoad(src, offset);
+				if (isDCopy) {
+					tmp = genCopyClass(tmp, (ClassType) memberVar.getType(), isDCopy);
+				}
+				genStore(tmp, dst, offset);
+			}
+		}
 		return dst;
 	}
 
